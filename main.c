@@ -19,39 +19,40 @@ de nuestra maquina de estados
 NOTA: Por claridad y consistencia se ha numerado cada grupo a partir de cierto valor.*/
 
 //Estados posibles (A partir del 1)
-#define ST_Idle		1
-#define ST_ReadPass	2
-#define ST_WaitUSB 	3
-#define ST_ReadUSB 	4
-#define ST_Browser 	5
-#define ST_Confirm 	6
-#define ST_Processing 	7
-#define ST_End 		8
-#define ST_Error 	9
+#define ST_Idle			1
+#define ST_WaitUSB		2
+#define ST_ReadUSB		3
+#define ST_Browser		4
+#define ST_Confirm		5
+#define ST_Processing	6
+#define ST_JOBRDY		7
 
 //Señales (A partir del 101)
 #define SIG_GoodPass 	101
-#define SIG_BadPass 	102
-#define SIG_UsbFound 	103
-#define SIG_UsbReady 	104
-#define SIG_JobDone 	105
-#define SIG_TimeOut 	106
+#define SIG_USBFound	102
+#define	SIG_JobDone		103
+
 
 //Teclas (A partir del 151)
 //FALTAN MAS (se puede hasta 8)
-#define KEY_Enter 	151
-#define KEY_Cancel 	152
-#define KEY_Up 		153
-#define KEY_Down 	154
+#define KEY_OK 		151
+#define KEY_CANCEL	152
+
 
 //Errores (A partir del 201)
-//Error en el formato del archivo excellon
-#define ERR_ParseFormat 201
-//No se encontro el archivo excellon
-#define ERR_ParseFile	202
-//Error de lectura del USB
-#define ERR_USB		203
-#define ERR_Uart	204
+//Password no valido
+#define ERR_Badpass 	201
+//No se encuentra USB
+#define	ERR_USBNotFound	202
+//El formato del USB no es reconocido por el VINCULUM
+#define	ERR_USBFormat	203
+//Error indefinido, relacionado con el stage Browser
+#define ERR_USB			204
+//Error de sintaxis en archivo EXCELLON
+#define	ERR_BadFile		205
+//Error debido a mala ubicacion de la baquelita
+#define	ERR_BadPosition	206
+
 
 /*Estructuras usadas para manejar los estados:
 =============================================
@@ -72,43 +73,30 @@ typedef struct{
 }NEXT_STATE;
 
 NEXT_STATE stateMapping[] = {
-//current_state		//signal	next_state
-{ST_Idle,		KEY_Enter,	ST_WaitUSB},
+//current_state		//signal			//next_state
+{ST_Idle,			SIG_GoodPass,		ST_WaitUSB},
+{ST_Idle,			ERR_BadPass,		ERROR},
 
-{ST_ReadPass,		KEY_Cancel,	ST_Idle},
-{ST_ReadPass,		SIG_GoodPass,	ST_WaitUSB},
-{ST_ReadPass,		SIG_TimeOut,	ST_Idle},
+{ST_WaitUSB,		SIG_UsbFound,		ST_ReadUSB},
+{ST_WaitUSB,		ERR_UsbNotFound,	ERROR},
 
-{ST_WaitUSB,		SIG_UsbFound,	ST_ReadUSB},
-{ST_WaitUSB,		KEY_Cancel,	ST_Idle},
-{ST_WaitUSB,		SIG_TimeOut,	ST_Idle},
-{ST_WaitUSB,		ERR_USB,	ST_Error},
+{ST_ReadUSB,		KEY_Cancel,			ST_Idle},
+{ST_ReadUSB,		KEY_OK,				ST_Browser},
+{ST_ReadUSB,		ERR_USBFormat,		ERROR},
 
-{ST_ReadUSB,		KEY_Cancel,	ST_WaitUSB},
-{ST_ReadUSB,		SIG_UsbReady,	ST_Browser},
-{ST_ReadUSB,		SIG_TimeOut,	ST_Idle},//Hay que ver bien cuanto demora leer el USB antes de timeoutear
+{ST_Browser,		KEY_OK,				ST_Confirm},
+{ST_Browser,		KEY_Cancel,			ST_Idle},
+{ST_Browser,		ERR_USB,			ERROR},
 
-{ST_Browser,		KEY_Enter,	ST_Confirm},
-{ST_Browser,		KEY_Cancel,	ST_WaitUSB},
-{ST_Browser,		SIG_TimeOut,	ST_Idle},
-{ST_Browser,		ERR_USB,	ST_Error},
+{ST_Confirm,		KEY_OK,				ST_Processing},
+{ST_Confirm,		KEY_Cancel,			ST_Browser},
 
-{ST_Confirm,		KEY_Enter,	ST_Processing},
-{ST_Confirm,		KEY_Cancel,	ST_Browser},
-{ST_Confirm,		SIG_TimeOut,	ST_Idle},
-{ST_Confirm,		ERR_USB,	ST_Error},
+{ST_Processing,		ERR_BadFile,		ERROR},
+{ST_Processing,		ERR_BadPosition,	ERROR},
+{ST_Processing,		SIG_JobDone,		ST_JobRdy},
 
-{ST_Processing,		KEY_Cancel,	ST_Browser},//Ver bien a donde regresa si se cancela el procesamiento
-{ST_Processing,		SIG_JobDone,	ST_End},
-{ST_Processing,		ERR_ParseFormat,ST_Error},
-{ST_Processing,		ERR_ParseFile,	ST_Error},
-{ST_Processing,		ERR_Uart,	ST_Error},
-
-{ST_End,		SIG_TimeOut,	ST_Idle},
-{ST_End,		KEY_Enter,	ST_Idle},
-{ST_End,		KEY_Cancel,	ST_Idle},
-{ST_End,		KEY_Up,		ST_Idle},
-{ST_End,		KEY_Down,	ST_Idle}
+{ST_JobRdy,			SIG_TimeOut,		ST_Idle},		//Se deshabilita el uso de las teclas Cancel, Arrow-Up y Arrow-Down
+{ST_JobRdy,			KEY_Enter,			ST_Idle}
 };
 
 /*
@@ -126,7 +114,7 @@ STATE stateFunctions[] = {
 {ST_Browser,		FALTA},
 {ST_Confirm,		FALTA},
 {ST_Processing,		FALTA},
-{ST_End,		FALTA},
+{ST_JobRdy,		FALTA},
 {ST_Error,		FALTA}
 };
 */
