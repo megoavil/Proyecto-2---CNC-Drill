@@ -1,0 +1,3 @@
+Primera version:
+*el parser funciona leyendo de un archivo de texto
+*el main es la maquina de estados pero no tiene las funciones implementadas
