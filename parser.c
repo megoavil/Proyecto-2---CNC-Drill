@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 	unsigned char start=0;//Se usa para ver si ya se empezaron a leer las coordenadas o no
 	unsigned char drillTotal=0;//Cuenta la cantidad de taladros en el header
 	unsigned char drillCurrent=0;//Va contando cada vez que se cambia de taladro
-	unsigned char controlCount=0;//Cuenta los caracteres de control %
+	//unsigned char controlCount=0;//Cuenta los caracteres de control %
 	int coordinates[2];
 
 	char command;
@@ -57,47 +57,52 @@ int main(int argc, char **argv)
 		fgets(buffer, sizeof(buffer), file);
 		command = *buffer; //Primera letra para reconocer el tipo de comando
 		
-		switch(command){
-			case('%'):
-				controlCount++;
-				if (controlCount==2){
+		//Cabecera de archivo Excellon, start=0
+		if (start==0){
+			switch(command){
+				case('T'):
+					drillTotal++;
+					break;
+				case('G'):
+					printf(buffer);	//Los comandos de tipo GXX de la cabecera deben ser identificados
+					break;
+				case('M'):
+					if(!strcmp(buffer,"M72\n")){
+						printf("Usando pulgadas...\n");
+					}else if(!strcmp(buffer,"M71\n")){
+						printf("Usando milimetros...\n");
+					}
+					break;
+				case('%'):
+					printf("Se usaran %x taladros.\n",drillTotal);
 					printf("Iniciando modo taladro...\n");
-					start=1;
-				}else if (controlCount>2){
-					errorHandler(ERR_Format);
-				}
-				break;
-			
-			case('T'):
-				if (start && drillCurrent<=drillTotal){
+					start=1;		//Se inicia la lectura de coordenadas
+					break;
+				default:
+					errorHandler(ERR_Format)
+					break;
+			}
+		}
+		
+		//Zona de coordenadas, solo cuando start=1
+		if (start==1){
+			switch(command){
+				case('T'): //Seleccion de herramienta
 					drillCurrent++;
 					printf("Cambiando a taladro %x...\n",drillCurrent);
-				}else{
-					drillTotal++;
-					printf("Se usaran %x taladros hasta el momento.\n",drillTotal);
-				}
-				break;
-			case('M')://Posteriormente anadir uan funcion para manejar codigos distintos
-				if(!strcmp(buffer,"M72\n")){
-					printf("Usando pulgadas...\n");
-				}else if(!strcmp(buffer,"M71\n")){
-					printf("Usando milimetros...\n");
-				}
-				break;
-			case('X'):
-				if(start){
+					break;
+				case('X')://Coordenadas
 					parseCoordinates(buffer,coordinates);
 					printf("Moviendo taladro a coordenadas (%d,%d)...\n",*coordinates,*(coordinates+1));
-				}else{
+					break;
+				default://Error de formato
 					errorHandler(ERR_Format);
-				}
-				break;
-			default:
-				errorHandler(ERR_BadChar);
+					break;
+			}
 		}
+		
 	}
 	printf("Ejecucion finalizada de forma exitosa. Buena chino!\n");
 	fclose(file);
 	return 0;
 }
- 
